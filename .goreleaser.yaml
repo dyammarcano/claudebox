@@ -1,16 +1,11 @@
-# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
-# vim: set ts=2 sw=2 tw=0 fo=cnqoj
-
 version: 2
 
 before:
   hooks:
     - go mod tidy
-    - go generate ./...
 
 builds:
-  - main: ./cmd/claudebox
-    env:
+  - env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -19,31 +14,26 @@ builds:
     goarch:
       - amd64
       - arm64
+    main: ./cmd/claudebox
+    binary: claudebox
+    ldflags:
+      - -s -w -X main.Version={{.Version}} -X main.GitHash={{.ShortCommit}} -X main.BuildTime={{.Date}}
 
 archives:
   - formats: [tar.gz]
     name_template: >-
-      {{ .ProjectName }}_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{.Arch}}{{ end }}
-      {{- if .Arm }}v{{.Arm}}{{ end }}
+      {{ .ProjectName }}_{{ .Os }}_{{ .Arch }}
     format_overrides:
       - goos: windows
         formats: [zip]
+
+checksum:
+  name_template: 'checksums.txt'
 
 changelog:
   sort: asc
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
-
-release:
-  footer: >-
-
-    ---
-
-    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
