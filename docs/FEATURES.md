@@ -9,6 +9,8 @@
 - **Guardrails** — `--allowed-tools`, `--max-turns`, `--permission-mode`.
 - **`--no-settings`** — skip host `settings.json` to avoid hook/plugin/MCP breakage in-container.
 - **Clean instance** — container force-removed every run (`--keep` to debug).
+- **Default-on hardening** — cap-drop ALL + no-new-privileges, read-only rootfs
+  with targeted tmpfs, and memory/cpu/pids limits; each with an escape hatch.
 - **Self-contained binary** — Dockerfile + entrypoint embedded via `go:embed`.
 - **Exit-code fidelity** — process exits with Claude's own exit code.
 - **Streamed output** — de-multiplexed stdout/stderr via stdcopy.

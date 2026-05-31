@@ -3,6 +3,8 @@ package engine
 import (
 	"reflect"
 	"testing"
+
+	"github.com/docker/docker/api/types/mount"
 )
 
 func TestEnvSliceSorted(t *testing.T) {

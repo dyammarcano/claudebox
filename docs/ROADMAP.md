@@ -21,12 +21,16 @@ tested, and validated against real Docker.
 - [x] Real `docker build` validated end-to-end (incl. runtime smoke test)
 
 ### Phase 3: Security hardening [IN PROGRESS]
-- [ ] `--cap-drop ALL`, `--security-opt no-new-privileges`
-- [ ] Read-only root filesystem + tmpfs
-- [ ] Resource limits (memory, cpus, pids)
+- [x] `--cap-drop ALL`, `--security-opt no-new-privileges` (default-on)
+- [x] Read-only root filesystem + targeted tmpfs (default-on; `--writable-rootfs` escape hatch)
+- [x] Resource limits — memory/cpus/pids (default 2g / 2 CPU / 512 pids; `0` = unlimited)
 - [ ] Network egress allowlist (Anthropic API only)
 - [ ] Move API key off env (docker-inspect exposure)
 - See `docs/BACKLOG.md` for details.
+
+Container lockdown verified empirically: runs as non-root `agent`, rootfs +
+`/usr` read-only, tmpfs paths writable, Claude binary not masked, and
+`claude --version` launches under the full hardened config.
 
 ### Phase 4: Polish & release [NOT STARTED]
 - [ ] Increase coverage of `engine`/`sandbox` (integration tests w/ Docker)

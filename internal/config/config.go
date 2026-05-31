@@ -7,6 +7,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	units "github.com/docker/go-units"
+)
+
+// Hardening defaults (applied at the flag layer). A zero/empty value for the
+// resource limits means "unlimited"; constructing a Config directly without
+// these still gets the capability/rootfs hardening, just no resource caps.
+const (
+	DefaultMemory    = "2g"
+	DefaultCPUs      = 2.0
+	DefaultPidsLimit = 512
 )
 
 // validOutputFormats is the set of --output-format values claude accepts.
@@ -85,6 +96,35 @@ type Config struct {
 	// Keep leaves the container in place after exit (debugging). Default is
 	// force-remove for a clean instance every time.
 	Keep bool
+
+	// --- Container hardening (default-on, with escape hatches) ---
+
+	// NoHardening disables ALL container hardening (capability drop,
+	// no-new-privileges, read-only rootfs, and resource limits), restoring the
+	// plain `docker run` behavior. Master escape hatch.
+	NoHardening bool
+
+	// WritableRootfs disables the read-only root filesystem (and its tmpfs
+	// mounts) for runs that need to write outside /workspace and the standard
+	// tmpfs paths.
+	WritableRootfs bool
+
+	// Memory is the container memory limit (e.g. "512m", "2g"). "" or "0"
+	// means unlimited. Parsed into MemoryBytes by Normalize.
+	Memory string
+
+	// MemoryBytes is the parsed form of Memory (0 = unlimited).
+	MemoryBytes int64
+
+	// CPUs is the container CPU limit (0 = unlimited).
+	CPUs float64
+
+	// PidsLimit caps the number of processes in the container (0 = unlimited).
+	PidsLimit int64
+
+	// CapAdd lists Linux capabilities to add back after the default
+	// `cap-drop ALL`, e.g. "NET_ADMIN". Empty means drop everything.
+	CapAdd []string
 }
 
 // Normalize fills defaults and resolves the workspace to an absolute path.
@@ -102,6 +142,18 @@ func (c *Config) Normalize() error {
 			return fmt.Errorf("resolve workspace path: %w", err)
 		}
 		c.Workspace = abs
+	}
+
+	// Parse the human-readable memory limit into bytes ("" / "0" = unlimited).
+	c.Memory = strings.TrimSpace(c.Memory)
+	if c.Memory != "" && c.Memory != "0" {
+		b, err := units.RAMInBytes(c.Memory)
+		if err != nil {
+			return fmt.Errorf("invalid --memory %q: %w", c.Memory, err)
+		}
+		c.MemoryBytes = b
+	} else {
+		c.MemoryBytes = 0
 	}
 	return nil
 }
@@ -127,6 +179,16 @@ func (c *Config) Validate() error {
 	}
 	if _, ok := validOutputFormats[c.OutputFormat]; !ok {
 		return fmt.Errorf("invalid output-format %q (want text|json|stream-json)", c.OutputFormat)
+	}
+	if c.CPUs < 0 {
+		return fmt.Errorf("--cpus must be >= 0, got %v", c.CPUs)
+	}
+	if c.PidsLimit < 0 {
+		return fmt.Errorf("--pids-limit must be >= 0, got %d", c.PidsLimit)
+	}
+	// Docker rejects memory limits below 6 MiB.
+	if c.MemoryBytes != 0 && c.MemoryBytes < 6*1024*1024 {
+		return fmt.Errorf("--memory too low: %s (minimum 6m)", c.Memory)
 	}
 	return nil
 }

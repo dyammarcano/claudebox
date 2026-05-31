@@ -99,6 +99,17 @@ claudebox run -w . -p "..." --no-settings
 | `--rebuild` / `--no-cache` | `false` | Force image rebuild |
 | `--keep` | `false` | Keep the container after exit (debugging) |
 
+### Hardening flags (default-on)
+
+| Flag | Default | Purpose |
+|------|---------|---------|
+| `--memory` | `2g` | Container memory limit (`0` = unlimited) |
+| `--cpus` | `2` | Container CPU limit (`0` = unlimited) |
+| `--pids-limit` | `512` | Max processes (`0` = unlimited) |
+| `--cap-add` | _(none)_ | Add a capability back after `cap-drop ALL` (repeatable) |
+| `--writable-rootfs` | `false` | Disable the read-only root filesystem |
+| `--no-hardening` | `false` | Disable **all** hardening (cap-drop, no-new-privileges, read-only rootfs, limits) |
+
 The process exits with **Claude's own exit code**.
 
 ## Architecture
@@ -118,14 +129,18 @@ rootfs, seccomp, resource limits).
 
 ## Security posture (v1)
 
-Enforced today: non-root container user; credentials mounted read-only and only
-copied (never the host dir directly); host `~/.claude` never modified; temp seed
-`0700` / credentials `0600`, deleted on exit; `--allowed-tools` + `--max-turns`
-guardrails; container force-removed every run.
+Enforced today (default-on): non-root container user; **all Linux capabilities
+dropped** (`--cap-drop ALL`) with `no-new-privileges`; **read-only root
+filesystem** with targeted tmpfs for the writable Claude dirs; **resource
+limits** (2g memory / 2 CPU / 512 pids by default); credentials mounted
+read-only and only copied (never the host dir directly); host `~/.claude` never
+modified; temp seed `0700` / credentials `0600`, deleted on exit;
+`--allowed-tools` + `--max-turns` guardrails; container force-removed every run.
+Every lockdown has an escape hatch (`--cap-add`, `--writable-rootfs`,
+`--memory/--cpus/--pids-limit 0`, `--no-hardening`).
 
-Deferred (tracked in `docs/BACKLOG.md`): network egress filtering, dropped
-capabilities, read-only root filesystem, seccomp/AppArmor profiles, and
-CPU/memory/pids limits.
+Deferred (tracked in `docs/BACKLOG.md`): network egress allowlist, seccomp/
+AppArmor profiles, and moving the API key off the container env.
 
 ## License
 

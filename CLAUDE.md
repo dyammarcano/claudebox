@@ -38,6 +38,10 @@ See `docs/ARCHITECTURE.md` (diagrams), `docs/DESIGN.md`, `docs/adr/`.
 - Never mount the host `~/.claude` directly — copy a scrubbed seed (see ADR-0002).
 - In-container Claude version is pinned (`stable` default; `--claude-version` to override).
 - Container runs as non-root `agent`; container is force-removed unless `--keep`.
+- Hardening is default-on (cap-drop ALL, no-new-privileges, read-only rootfs +
+  tmpfs, memory/cpu/pids limits). The security-critical mapping lives in
+  `RunOptions.toHostConfig` (pure, unit-tested). Read-only-rootfs tmpfs targets
+  writable subdirs only — never `/home/agent` (would mask the Claude binary).
 - License: BSD 3-Clause. No AI attribution in commits.
 
 ---

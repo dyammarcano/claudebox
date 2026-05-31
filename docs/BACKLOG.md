@@ -10,16 +10,24 @@
 
 ## Items
 
-### Security hardening — container runtime lockdown
-- **Priority:** P1
+### Security hardening — container runtime lockdown [DONE]
+- **Priority:** P1 — **shipped**
 - **Category:** Feature / Security
-- **Description:** v1 runs the container on the default bridge with full
-  capabilities and a writable rootfs. Add opt-in (then default-on) hardening:
-  - `--cap-drop ALL` (+ minimal `--cap-add` if needed)
-  - read-only root filesystem (`ReadonlyRootfs`) + `tmpfs` for `/tmp` and
-    writable Claude home
-  - `--security-opt no-new-privileges`, seccomp/AppArmor profile
-  - resource limits: `--memory`, `--cpus`, `--pids-limit`
+- **Delivered (default-on, with escape hatches):**
+  - `--cap-drop ALL` + `--cap-add` to add specific caps back
+  - read-only root filesystem (`ReadonlyRootfs`) + targeted tmpfs for `/tmp`
+    and the writable Claude dirs (`~/.claude`, `~/.cache`, `~/.config`);
+    `--writable-rootfs` escape hatch
+  - `--security-opt no-new-privileges`
+  - resource limits: `--memory` / `--cpus` / `--pids-limit` (`0` = unlimited)
+  - master off switch: `--no-hardening`
+- **Still open (separate items below):** seccomp/AppArmor profile.
+
+### Security hardening — seccomp / AppArmor profile
+- **Priority:** P2
+- **Category:** Security
+- **Description:** Layer a restrictive seccomp (and/or AppArmor) profile on top
+  of the capability + rootfs lockdown via `HostConfig.SecurityOpt`.
 - **Effort:** Medium
 
 ### API key visible via `docker inspect`

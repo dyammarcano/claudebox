@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
@@ -32,12 +33,86 @@ type RunOptions struct {
 	// Keep, when true, leaves the container in place after exit instead of
 	// force-removing it.
 	Keep bool
+
+	// --- Hardening (all optional; zero values mean "not applied") ---
+
+	// CapDrop lists Linux capabilities to drop, e.g. {"ALL"}.
+	CapDrop []string
+	// CapAdd lists capabilities to add back after CapDrop.
+	CapAdd []string
+	// SecurityOpt sets container security options, e.g. {"no-new-privileges"}.
+	SecurityOpt []string
+	// ReadonlyRootfs mounts the container root filesystem read-only.
+	ReadonlyRootfs bool
+	// Tmpfs maps container paths to tmpfs mount option strings. Required
+	// writable paths when ReadonlyRootfs is set.
+	Tmpfs map[string]string
+	// MemoryBytes caps container memory (0 = unlimited).
+	MemoryBytes int64
+	// NanoCPUs caps CPU as billionths of a CPU (0 = unlimited).
+	NanoCPUs int64
+	// PidsLimit caps the number of processes (0 = unlimited).
+	PidsLimit int64
 }
 
 const (
 	workspaceTarget = "/workspace"
 	seedTarget      = "/seed"
 )
+
+// mounts builds the bind mounts for the run (workspace rw, seed ro).
+func (opts RunOptions) mounts() []mount.Mount {
+	m := []mount.Mount{{
+		Type:   mount.TypeBind,
+		Source: opts.WorkspaceHost,
+		Target: workspaceTarget,
+	}}
+	if opts.SeedHost != "" {
+		m = append(m, mount.Mount{
+			Type:     mount.TypeBind,
+			Source:   opts.SeedHost,
+			Target:   seedTarget,
+			ReadOnly: true,
+		})
+	}
+	return m
+}
+
+// toHostConfig translates RunOptions into a Docker HostConfig. It is pure (no
+// daemon calls) so the security-critical mapping can be unit-tested.
+func (opts RunOptions) toHostConfig() *container.HostConfig {
+	hc := &container.HostConfig{
+		Mounts:         opts.mounts(),
+		ReadonlyRootfs: opts.ReadonlyRootfs,
+		SecurityOpt:    opts.SecurityOpt,
+	}
+	if len(opts.CapDrop) > 0 {
+		hc.CapDrop = strslice.StrSlice(opts.CapDrop)
+	}
+	if len(opts.CapAdd) > 0 {
+		hc.CapAdd = strslice.StrSlice(opts.CapAdd)
+	}
+	if len(opts.Tmpfs) > 0 {
+		hc.Tmpfs = opts.Tmpfs
+	}
+	if opts.Network != "" {
+		hc.NetworkMode = container.NetworkMode(opts.Network)
+	}
+
+	res := container.Resources{}
+	if opts.MemoryBytes > 0 {
+		res.Memory = opts.MemoryBytes
+	}
+	if opts.NanoCPUs > 0 {
+		res.NanoCPUs = opts.NanoCPUs
+	}
+	if opts.PidsLimit > 0 {
+		limit := opts.PidsLimit
+		res.PidsLimit = &limit
+	}
+	hc.Resources = res
+	return hc
+}
 
 // Run creates, starts, and streams a throwaway container, returning its exit
 // code. Unless opts.Keep is set, the container is force-removed before Run
@@ -50,24 +125,7 @@ func (e *Engine) Run(ctx context.Context, opts RunOptions) (int, error) {
 		return -1, fmt.Errorf("run: workspace host path is required")
 	}
 
-	mounts := []mount.Mount{{
-		Type:   mount.TypeBind,
-		Source: opts.WorkspaceHost,
-		Target: workspaceTarget,
-	}}
-	if opts.SeedHost != "" {
-		mounts = append(mounts, mount.Mount{
-			Type:     mount.TypeBind,
-			Source:   opts.SeedHost,
-			Target:   seedTarget,
-			ReadOnly: true,
-		})
-	}
-
-	hostCfg := &container.HostConfig{Mounts: mounts}
-	if opts.Network != "" {
-		hostCfg.NetworkMode = container.NetworkMode(opts.Network)
-	}
+	hostCfg := opts.toHostConfig()
 
 	containerCfg := &container.Config{
 		Image:      opts.Image,
@@ -81,7 +139,8 @@ func (e *Engine) Run(ctx context.Context, opts RunOptions) (int, error) {
 		return -1, fmt.Errorf("run: create container: %w", err)
 	}
 	id := created.ID
-	e.log.Info("container created", "id", short(id), "image", opts.Image)
+	e.log.Info("container created", "id", short(id), "image", opts.Image,
+		"readonly_rootfs", opts.ReadonlyRootfs, "cap_drop", opts.CapDrop)
 
 	if !opts.Keep {
 		// Cleanup must run even if ctx was cancelled (e.g. Ctrl-C), so detach

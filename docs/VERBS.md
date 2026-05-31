@@ -47,6 +47,12 @@ claudebox run [flags]
 | `--no-settings` | `false` | Don't copy `settings.json` into the seed |
 | `--keep` | `false` | Keep the container after exit (debugging) |
 | `--debug` | `false` | Verbose debug logging |
+| `--memory` | `2g` | Container memory limit (`0` = unlimited) |
+| `--cpus` | `2` | Container CPU limit (`0` = unlimited) |
+| `--pids-limit` | `512` | Max processes in the container (`0` = unlimited) |
+| `--cap-add` | _(none)_ | Linux capability to add back after `cap-drop ALL` (repeatable) |
+| `--writable-rootfs` | `false` | Disable the read-only root filesystem |
+| `--no-hardening` | `false` | Disable all container hardening |
 
 **Examples:**
 
@@ -63,7 +69,9 @@ ANTHROPIC_API_KEY=sk-ant-... claudebox run -w . -p "..." --no-settings
 ```
 
 **Notes:** Exits with Claude's own exit code. Requires a reachable Docker daemon
-and either OAuth credentials in `~/.claude` or an API key.
+and either OAuth credentials in `~/.claude` or an API key. The container is
+hardened by default (cap-drop ALL, no-new-privileges, read-only rootfs +
+tmpfs, memory/cpu/pids limits); loosen with the hardening flags above.
 
 ## `claudebox version`
 

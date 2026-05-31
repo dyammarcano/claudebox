@@ -117,20 +117,76 @@ func (s *Sandbox) Run(ctx context.Context) (int, error) {
 	s.log.Info("prepared credential seed", "files", seed.Copied, "oauth", seed.HasCredentials)
 
 	// 4. Run the throwaway container.
-	exitCode, err := s.eng.Run(ctx, engine.RunOptions{
-		Image:         tag,
-		Env:           s.buildEnv(),
-		WorkspaceHost: s.cfg.Workspace,
-		SeedHost:      seed.Dir,
-		Network:       s.cfg.Network,
-		Stdout:        s.stdout,
-		Stderr:        s.stderr,
-		Keep:          s.cfg.Keep,
-	})
+	exitCode, err := s.eng.Run(ctx, s.runOptions(tag, seed.Dir))
 	if err != nil {
 		return exitCode, err
 	}
 	return exitCode, nil
+}
+
+// containerHome is the in-container HOME (matches the Dockerfile HOME_DIR). The
+// Claude install lives at $containerHome/.local, so the read-only-rootfs tmpfs
+// mounts target only the writable subdirectories — never $containerHome itself,
+// which would mask the binary.
+const containerHome = "/home/agent"
+
+// hardenedTmpfs returns the tmpfs mounts that provide the writable paths Claude
+// needs when the root filesystem is read-only: a scratch /tmp plus the Claude
+// state, cache, and config directories under HOME. /workspace is a separate
+// writable bind mount.
+func hardenedTmpfs() map[string]string {
+	return map[string]string{
+		"/tmp":                     "rw,nosuid,nodev,size=256m",
+		containerHome + "/.claude": "rw,nosuid,nodev,uid=1000,gid=1000,mode=0700,size=128m",
+		containerHome + "/.cache":  "rw,nosuid,nodev,uid=1000,gid=1000,size=256m",
+		containerHome + "/.config": "rw,nosuid,nodev,uid=1000,gid=1000,size=64m",
+	}
+}
+
+// runOptions assembles the engine RunOptions, applying default-on hardening
+// unless the caller opted out via --no-hardening / --writable-rootfs.
+func (s *Sandbox) runOptions(tag, seedDir string) engine.RunOptions {
+	opts := engine.RunOptions{
+		Image:         tag,
+		Env:           s.buildEnv(),
+		WorkspaceHost: s.cfg.Workspace,
+		SeedHost:      seedDir,
+		Network:       s.cfg.Network,
+		Stdout:        s.stdout,
+		Stderr:        s.stderr,
+		Keep:          s.cfg.Keep,
+	}
+
+	if s.cfg.NoHardening {
+		s.log.Warn("container hardening disabled (--no-hardening)")
+		return opts
+	}
+
+	// Capabilities + privilege escalation lockdown.
+	opts.CapDrop = []string{"ALL"}
+	opts.CapAdd = s.cfg.CapAdd
+	opts.SecurityOpt = []string{"no-new-privileges"}
+
+	// Resource limits (0 = unlimited, left unset).
+	opts.MemoryBytes = s.cfg.MemoryBytes
+	if s.cfg.CPUs > 0 {
+		opts.NanoCPUs = int64(s.cfg.CPUs * 1e9)
+	}
+	opts.PidsLimit = s.cfg.PidsLimit
+
+	// Read-only root filesystem with targeted tmpfs for writable paths.
+	if !s.cfg.WritableRootfs {
+		opts.ReadonlyRootfs = true
+		opts.Tmpfs = hardenedTmpfs()
+	}
+
+	s.log.Info("container hardening enabled",
+		"readonly_rootfs", opts.ReadonlyRootfs,
+		"memory_bytes", opts.MemoryBytes,
+		"nano_cpus", opts.NanoCPUs,
+		"pids_limit", opts.PidsLimit,
+		"cap_add", opts.CapAdd)
+	return opts
 }
 
 // ensureImage builds the image when missing or when a rebuild is requested.
