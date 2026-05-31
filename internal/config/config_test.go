@@ -89,3 +89,62 @@ func TestResolvedImageTag(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeMemoryParse(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		memory  string
+		want    int64
+		wantErr bool
+	}{
+		{"2g", "2g", 2 << 30, false},
+		{"512m", "512m", 512 << 20, false},
+		{"empty unlimited", "", 0, false},
+		{"zero unlimited", "0", 0, false},
+		{"whitespace", "  1g  ", 1 << 30, false},
+		{"garbage", "lots", 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			c := Config{Workspace: ".", Prompt: "x", Memory: tt.memory}
+			err := c.Normalize()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Normalize() err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil && c.MemoryBytes != tt.want {
+				t.Errorf("MemoryBytes = %d, want %d", c.MemoryBytes, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidateHardeningRanges(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	base := func() Config {
+		return Config{Workspace: dir, Prompt: "x", MaxTurns: 5, OutputFormat: "text"}
+	}
+	tests := []struct {
+		name    string
+		mutate  func(*Config)
+		wantErr bool
+	}{
+		{"negative cpus", func(c *Config) { c.CPUs = -1 }, true},
+		{"zero cpus ok", func(c *Config) { c.CPUs = 0 }, false},
+		{"negative pids", func(c *Config) { c.PidsLimit = -1 }, true},
+		{"memory too low", func(c *Config) { c.MemoryBytes = 1024 }, true},
+		{"memory ok", func(c *Config) { c.MemoryBytes = 256 << 20 }, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			c := base()
+			tt.mutate(&c)
+			if err := c.Validate(); (err != nil) != tt.wantErr {
+				t.Errorf("Validate() err = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
