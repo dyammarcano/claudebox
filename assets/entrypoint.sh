@@ -17,6 +17,8 @@
 #   OUTPUT_FORMAT      optional — text | json | stream-json (default: stream-json)
 #   ALLOWED_TOOLS      optional — comma/space tool allowlist for --allowedTools
 #   PERMISSION_MODE    optional — e.g. dontAsk, acceptEdits
+#   INCLUDE_PARTIAL_MESSAGES optional — "1" to stream token-by-token deltas
+#                            (stream-json only; implies --verbose)
 #   EXTRA_ARGS         optional — additional raw flags appended verbatim
 #   SEED_DIR           optional — read-only seed mount (default: /seed)
 #   ANTHROPIC_API_KEY  optional — if set, Claude uses API billing instead of OAuth
@@ -62,6 +64,10 @@ args=(--print "${PROMPT}" --output-format "${OUTPUT_FORMAT}" --max-turns "${MAX_
 # stream-json requires --verbose to emit events.
 if [ "${OUTPUT_FORMAT}" = "stream-json" ]; then
     args+=(--verbose)
+    # Token-by-token streaming of partial message deltas (stream-json only).
+    if [ "${INCLUDE_PARTIAL_MESSAGES:-}" = "1" ]; then
+        args+=(--include-partial-messages)
+    fi
 fi
 
 if [ -n "${ALLOWED_TOOLS:-}" ]; then

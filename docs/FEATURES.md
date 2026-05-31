@@ -14,6 +14,9 @@
 - **Self-contained binary** — Dockerfile + entrypoint embedded via `go:embed`.
 - **Exit-code fidelity** — process exits with Claude's own exit code.
 - **Streamed output** — de-multiplexed stdout/stderr via stdcopy.
+- **Token-by-token streaming** — `--include-partial-messages` (stream-json) emits
+  partial message deltas as they're generated, like the raw `claude -p
+  --output-format stream-json --verbose --include-partial-messages` flow.
 
 ## Proposed
 

@@ -90,6 +90,7 @@ claudebox run -w . -p "..." --no-settings
 | `-p, --prompt` | _(required)_ | Task prompt for the agent |
 | `--max-turns` | `20` | Cap on agent turns |
 | `--output-format` | `stream-json` | `text` \| `json` \| `stream-json` |
+| `--include-partial-messages` | `false` | Stream token-by-token deltas (stream-json only) |
 | `--allowed-tools` | _(none)_ | `--allowedTools` allowlist |
 | `--permission-mode` | _(none)_ | e.g. `dontAsk`, `acceptEdits` |
 | `--api-key` | env, else OAuth | `ANTHROPIC_API_KEY` override |

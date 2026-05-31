@@ -102,14 +102,14 @@ func TestToHostConfigHardened(t *testing.T) {
 	if hc.Tmpfs["/tmp"] == "" {
 		t.Errorf("Tmpfs missing /tmp: %v", hc.Tmpfs)
 	}
-	if hc.Resources.Memory != 2<<30 {
-		t.Errorf("Memory = %d, want %d", hc.Resources.Memory, int64(2<<30))
+	if hc.Memory != 2<<30 {
+		t.Errorf("Memory = %d, want %d", hc.Memory, int64(2<<30))
 	}
-	if hc.Resources.NanoCPUs != 2_000_000_000 {
-		t.Errorf("NanoCPUs = %d", hc.Resources.NanoCPUs)
+	if hc.NanoCPUs != 2_000_000_000 {
+		t.Errorf("NanoCPUs = %d", hc.NanoCPUs)
 	}
-	if hc.Resources.PidsLimit == nil || *hc.Resources.PidsLimit != 512 {
-		t.Errorf("PidsLimit = %v, want 512", hc.Resources.PidsLimit)
+	if hc.PidsLimit == nil || *hc.PidsLimit != 512 {
+		t.Errorf("PidsLimit = %v, want 512", hc.PidsLimit)
 	}
 	if hc.NetworkMode != "bridge" {
 		t.Errorf("NetworkMode = %q, want bridge", hc.NetworkMode)
@@ -129,7 +129,7 @@ func TestToHostConfigNoHardening(t *testing.T) {
 	if len(hc.SecurityOpt) != 0 {
 		t.Errorf("SecurityOpt = %v, want empty", hc.SecurityOpt)
 	}
-	if hc.Resources.Memory != 0 || hc.Resources.NanoCPUs != 0 || hc.Resources.PidsLimit != nil {
+	if hc.Memory != 0 || hc.NanoCPUs != 0 || hc.PidsLimit != nil {
 		t.Errorf("resource limits set when unset: %+v", hc.Resources)
 	}
 	if len(hc.Tmpfs) != 0 {

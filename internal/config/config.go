@@ -44,6 +44,12 @@ type Config struct {
 	// OutputFormat is one of text|json|stream-json.
 	OutputFormat string
 
+	// IncludePartialMessages streams partial message deltas (token-by-token)
+	// as they are generated. Only meaningful with OutputFormat "stream-json"
+	// (which also implies --verbose). Mirrors claude's
+	// --include-partial-messages flag.
+	IncludePartialMessages bool
+
 	// AllowedTools is the --allowedTools allowlist (permission-rule syntax),
 	// e.g. "Read,Edit,Bash(git diff *)". Empty means none pre-approved.
 	AllowedTools string
@@ -179,6 +185,9 @@ func (c *Config) Validate() error {
 	}
 	if _, ok := validOutputFormats[c.OutputFormat]; !ok {
 		return fmt.Errorf("invalid output-format %q (want text|json|stream-json)", c.OutputFormat)
+	}
+	if c.IncludePartialMessages && c.OutputFormat != "stream-json" {
+		return fmt.Errorf("--include-partial-messages requires --output-format stream-json (got %q)", c.OutputFormat)
 	}
 	if c.CPUs < 0 {
 		return fmt.Errorf("--cpus must be >= 0, got %v", c.CPUs)

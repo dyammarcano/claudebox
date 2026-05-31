@@ -136,6 +136,9 @@ func TestValidateHardeningRanges(t *testing.T) {
 		{"negative pids", func(c *Config) { c.PidsLimit = -1 }, true},
 		{"memory too low", func(c *Config) { c.MemoryBytes = 1024 }, true},
 		{"memory ok", func(c *Config) { c.MemoryBytes = 256 << 20 }, false},
+		{"partial-messages with stream-json", func(c *Config) { c.OutputFormat = "stream-json"; c.IncludePartialMessages = true }, false},
+		{"partial-messages with text", func(c *Config) { c.OutputFormat = "text"; c.IncludePartialMessages = true }, true},
+		{"partial-messages with json", func(c *Config) { c.OutputFormat = "json"; c.IncludePartialMessages = true }, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

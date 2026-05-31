@@ -218,6 +218,9 @@ func (s *Sandbox) buildEnv() map[string]string {
 		"OUTPUT_FORMAT": s.cfg.OutputFormat,
 		"SEED_DIR":      "/seed",
 	}
+	if s.cfg.IncludePartialMessages {
+		env["INCLUDE_PARTIAL_MESSAGES"] = "1"
+	}
 	if s.cfg.AllowedTools != "" {
 		env["ALLOWED_TOOLS"] = s.cfg.AllowedTools
 	}

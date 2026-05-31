@@ -33,6 +33,7 @@ claudebox run [flags]
 | `-p, --prompt` | _(required)_ | Task prompt for the agent |
 | `--max-turns` | `20` | Cap on agent turns |
 | `--output-format` | `stream-json` | `text` \| `json` \| `stream-json` |
+| `--include-partial-messages` | `false` | Stream token-by-token partial deltas (requires `--output-format stream-json`) |
 | `--allowed-tools` | _(none)_ | `--allowedTools` allowlist, e.g. `"Read,Edit,Bash(git diff *)"` |
 | `--permission-mode` | _(none)_ | Baseline permission mode, e.g. `dontAsk`, `acceptEdits` |
 | `--extra-arg` | _(none)_ | Extra raw claude flag (repeatable; no spaces in a value) |
@@ -66,6 +67,11 @@ claudebox run -w ./myproj -p "summarize the architecture" \
 
 # API-key billing, skip host settings
 ANTHROPIC_API_KEY=sk-ant-... claudebox run -w . -p "..." --no-settings
+
+# Token-by-token streaming, capture to a file (mirrors the raw claude flow:
+#   printf '...' | claude -p --output-format stream-json --verbose --include-partial-messages)
+claudebox run -w . -p "Write three short sentences about coffee, then stop." \
+  --output-format stream-json --include-partial-messages > cap.txt
 ```
 
 **Notes:** Exits with Claude's own exit code. Requires a reachable Docker daemon
