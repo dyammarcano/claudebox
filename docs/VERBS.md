@@ -39,7 +39,7 @@ claudebox run [flags]
 | `--api-key` | env, else OAuth | `ANTHROPIC_API_KEY` override (visible via `docker inspect` while running) |
 | `--claude-home` | auto-detect | Host `~/.claude` directory |
 | `--seed-base` | `~/.claudebox/seeds` | Base dir for the ephemeral credential seed |
-| `--claude-version` | auto-detect | Pin the in-container Claude version |
+| `--claude-version` | `stable` | In-container Claude version (`stable`/`latest`/`X.Y.Z`) |
 | `--image-tag` | `claudebox:<version>` | Image tag to build/run |
 | `--network` | bridge | Container network mode; `none` cuts egress but also blocks the API |
 | `--no-cache` | `false` | Force a clean image rebuild |

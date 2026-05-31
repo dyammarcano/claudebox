@@ -9,7 +9,7 @@ tested, and validated against real Docker.
 ### Phase 1: Foundation [COMPLETE]
 - [x] Project scaffold (Cobra, hexagonal layout, CI config)
 - [x] Config model with Normalize/Validate
-- [x] Host Claude version detection
+- [x] Pinned Claude version (stable default; --claude-version override)
 - [x] Ephemeral credential seed (copy + scrub + cleanup)
 
 ### Phase 2: Sandbox core [COMPLETE]
@@ -34,7 +34,7 @@ tested, and validated against real Docker.
 - [ ] v1.0.0 release via GoReleaser
 
 ## Test Coverage
-**Current:** 13.4% total  |  **Target:** 80%
+**Target:** 80%
 
 The total is dragged down by the large, Docker-dependent and CLI-glue packages
 that have no unit tests yet; the pure-logic packages are well covered.
@@ -43,7 +43,6 @@ that have no unit tests yet; the pure-logic packages are well covered.
 |---------|----------|--------|
 | internal/config | 96.8% | Good |
 | internal/credentials | 69.8% | OK (copyFile/DefaultClaudeHome error paths untested) |
-| internal/version | 25.0% | `Parse` covered; `Detect` needs host claude |
 | internal/engine | 19.1% | Needs improvement (Docker-dependent paths) |
 | internal/sandbox | 0.0% | No tests (orchestration; needs Docker fake) |
 | cmd/claudebox | 0.0% | No tests |

@@ -2,7 +2,8 @@
 
 `claudebox` is a single Go binary that drives Docker to run Claude Code headless
 in a throwaway container. The Dockerfile and entrypoint are embedded via
-`go:embed`, so there are no runtime file dependencies.
+`go:embed`, so there are no runtime file dependencies. The in-container Claude
+version defaults to `stable` and is pinnable with `--claude-version`.
 
 ## System Overview
 
@@ -14,19 +15,16 @@ flowchart TB
         cli["cmd/claudebox<br/>Cobra run command"]
         cfg["internal/config<br/>Normalize + Validate"]
         sb["internal/sandbox<br/>lifecycle orchestrator"]
-        ver["internal/version<br/>detect host claude"]
         creds["internal/credentials<br/>seed prepare + scrub"]
         eng["internal/engine<br/>Docker SDK wrapper"]
         assets["assets<br/>embedded Dockerfile + entrypoint.sh"]
         cli --> cfg --> sb
-        sb --> ver
         sb --> creds
         sb --> eng
         eng --> assets
     end
 
     subgraph host["Host"]
-        claudebin["claude (host binary)<br/>version source only"]
         home["~/.claude<br/>.credentials.json, settings.json"]
         ws["workspace dir"]
         seed["temp seed dir<br/>~/.claudebox/seeds (0700)"]
@@ -37,7 +35,6 @@ flowchart TB
         ctr["throwaway container<br/>non-root agent user"]
     end
 
-    ver -.reads --version.-> claudebin
     creds -.copies creds.-> home
     creds -->|writes scrubbed copy| seed
     eng -->|ImageBuild CLAUDE_VERSION| img
@@ -56,7 +53,6 @@ sequenceDiagram
     actor U as User
     participant C as cmd/claudebox
     participant S as sandbox
-    participant V as version
     participant Cr as credentials
     participant E as engine (Docker SDK)
     participant D as Docker engine
@@ -66,13 +62,10 @@ sequenceDiagram
     C->>C: Normalize + Validate config
     C->>S: Run(ctx)
     S->>E: Ping (daemon reachable?)
-    alt --claude-version unset
-        S->>V: Detect(host claude --version)
-        V-->>S: "2.1.158"
-    end
-    S->>E: ImageExists(claudebox:2.1.158)?
+    S->>S: resolve version (--claude-version or "stable")
+    S->>E: ImageExists(claudebox:&lt;version&gt;)?
     alt missing or --rebuild/--no-cache
-        S->>E: BuildImage(CLAUDE_VERSION=2.1.158)
+        S->>E: BuildImage(CLAUDE_VERSION=&lt;version&gt;)
         E->>D: ImageBuild(tar of embedded assets)
         D-->>E: build log stream
     end
@@ -125,7 +118,6 @@ container a writable, disposable copy.
 |---------|----------------|---------------------|
 | `cmd/claudebox` | CLI surface, flag parsing, exit-code propagation | `runCmd`, `runE`, `exitCodeError` |
 | `internal/config` | Config struct, defaults, validation | `Config`, `Normalize`, `Validate`, `ResolvedImageTag` |
-| `internal/version` | Detect/parse host Claude version | `Detect`, `Parse` |
 | `internal/credentials` | Prepare scrubbed ephemeral seed | `PrepareSeed`, `Seed`, `DefaultClaudeHome` |
 | `internal/engine` | Docker build/run/stream/remove | `Engine`, `BuildImage`, `Run`, `ImageExists` |
 | `internal/sandbox` | Orchestrate the lifecycle | `Sandbox`, `Run`, `defaultSeedBase` |

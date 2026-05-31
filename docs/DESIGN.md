@@ -36,7 +36,7 @@ untouched and read-only; the container's copy is ephemeral and dies with the con
   `COPY --from=builder` the `.local/bin/claude` + `.local/share/claude`. Create non-root
   `agent` user (uid 1000). `ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]`.
 
-The Go app runs `claude --version` on the host, parses `2.0.76`, passes `--build-arg CLAUDE_VERSION=2.0.76`.
+The Go app resolves the version from `--claude-version` (default `stable`) and passes it as `--build-arg CLAUDE_VERSION=<version>`.
 
 ## entrypoint.sh (container)
 1. `cp -a /seed/.claude "$HOME/.claude"` (if present); `chmod 600 .credentials.json`.
@@ -47,7 +47,6 @@ The Go app runs `claude --version` on the host, parses `2.0.76`, passes `--build
 ```
 cmd/claudebox/main.go         # Cobra root + run command, slog JSON setup
 internal/config/config.go     # flags → Config struct + validation
-internal/version/version.go   # detect host `claude --version`, parse semver
 internal/credentials/creds.go # locate host ~/.claude, copy seed (creds+settings) → temp, scrub
 internal/engine/build.go      # Docker SDK: tar embedded build ctx, ImageBuild w/ CLAUDE_VERSION arg
 internal/engine/run.go        # Docker SDK: ContainerCreate/Start, stream ContainerLogs, ContainerRemove
@@ -62,7 +61,7 @@ SDK note: `ImageBuild` needs the build context as a tar stream — `internal/eng
 claudebox run --workspace ./proj --prompt "fix the failing test" \
   --max-turns 20 --allowed-tools "Edit,Bash,Read" [--api-key|auto] [--keep] [--image-tag]
 ```
-Lifecycle: detect host version → tar embedded assets → `ImageBuild(CLAUDE_VERSION=2.1.158)` →
+Lifecycle: resolve version (--claude-version or "stable") → tar embedded assets → `ImageBuild(CLAUDE_VERSION=<version>)` →
 copy host creds+settings to temp seed (0700/0600) → `ContainerCreate` with binds
 (`ws:/workspace:rw`, `seed:/seed:ro`) + env (`PROMPT`, `MAX_TURNS`, optional `ANTHROPIC_API_KEY`) →
 `ContainerStart` → stream `ContainerLogs` to stdout → wait → `ContainerRemove{Force:true}`

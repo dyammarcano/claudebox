@@ -2,11 +2,12 @@
 
 Run Claude Code agents in **isolated, throwaway Docker containers**.
 
-`claudebox` is a small Go wrapper that builds an ephemeral container image pinned
-to your host's exact Claude Code version, injects a **scrubbed, read-only copy**
-of your credentials, runs Claude **headlessly** against a mounted workspace, and
-then **force-removes the container** so every run is a clean instance with no
-pollution of your own Claude install.
+`claudebox` is a small Go wrapper that builds an ephemeral container image with a
+version-pinned Claude Code install (`stable` by default, or any version via
+`--claude-version`), injects a **scrubbed, read-only copy** of your credentials,
+runs Claude **headlessly** against a mounted workspace, and then **force-removes
+the container** so every run is a clean instance with no pollution of your own
+Claude install.
 
 ## Why
 
@@ -15,17 +16,17 @@ pollution of your own Claude install.
   allowlist and `--max-turns` cap bound what the agent can do.
 - **Clean instance** — your host `~/.claude` is never written to; container
   history dies with the container.
-- **Version parity** — the in-container Claude matches `claude --version` on the
-  host, so behavior is reproducible.
+- **Pinned version** — the in-container Claude is pinned (`stable` by default, or
+  `--claude-version X.Y.Z`), so runs are reproducible.
 
 ## How it works
 
 ```
 claudebox run                       host                          container (throwaway)
   │
-  ├─ detect host `claude --version`  ──► e.g. 2.1.158
-  ├─ build image (embedded 2-stage Dockerfile, CLAUDE_VERSION=2.1.158)
-  │     stage 1: curl install.sh | bash -s -- 2.1.158  (pinned)
+  ├─ resolve version (--claude-version, default "stable")
+  ├─ build image (embedded 2-stage Dockerfile, CLAUDE_VERSION=<version>)
+  │     stage 1: curl install.sh | bash -s -- <version>  (pinned)
   │     stage 2: minimal debian, non-root `agent`, COPY ~/.local
   ├─ copy ~/.claude/{.credentials.json[,settings.json]} ─► temp seed (0700/0600)
   ├─ docker run  -v workspace:/workspace:rw
@@ -43,10 +44,11 @@ The Dockerfile and entrypoint are **embedded in the binary** (`go:embed`), so
 ## Requirements
 
 - Docker (Docker Desktop on Windows/macOS, or the engine on Linux)
-- Claude Code installed on the host (used only to detect the version; override
-  with `--claude-version` to skip this)
 - A logged-in Claude subscription (`~/.claude/.credentials.json`) **or** an
   `ANTHROPIC_API_KEY`
+
+The in-container Claude version defaults to `stable`; pin a specific release with
+`--claude-version X.Y.Z`.
 
 ## Install
 
@@ -92,7 +94,7 @@ claudebox run -w . -p "..." --no-settings
 | `--permission-mode` | _(none)_ | e.g. `dontAsk`, `acceptEdits` |
 | `--api-key` | env, else OAuth | `ANTHROPIC_API_KEY` override |
 | `--no-settings` | `false` | Don't copy `settings.json` into the seed |
-| `--claude-version` | auto-detect | Pin the in-container Claude version |
+| `--claude-version` | `stable` | In-container Claude version (`stable`/`latest`/`X.Y.Z`) |
 | `--network` | bridge | Container network mode (`none` to cut egress) |
 | `--rebuild` / `--no-cache` | `false` | Force image rebuild |
 | `--keep` | `false` | Keep the container after exit (debugging) |
@@ -104,7 +106,6 @@ The process exits with **Claude's own exit code**.
 ```
 cmd/claudebox/         CLI (Cobra) — run command, version, exit-code handling
 internal/config/       Config struct + Normalize/Validate
-internal/version/      Detect host `claude --version`
 internal/credentials/  Locate ~/.claude, copy scrubbed seed, cleanup
 internal/engine/       Docker SDK: build image, run container, stream, remove
 internal/sandbox/      Lifecycle orchestration

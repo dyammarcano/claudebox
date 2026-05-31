@@ -1,6 +1,6 @@
-// Package sandbox orchestrates the full claudebox lifecycle: detect the host
-// Claude version, build the pinned image, prepare ephemeral credentials, run
-// the throwaway container, and clean everything up.
+// Package sandbox orchestrates the full claudebox lifecycle: resolve the Claude
+// version to pin, build the image, prepare ephemeral credentials, run the
+// throwaway container, and clean everything up.
 package sandbox
 
 import (
@@ -17,8 +17,13 @@ import (
 	"github.com/inovacc/claudebox/internal/config"
 	"github.com/inovacc/claudebox/internal/credentials"
 	"github.com/inovacc/claudebox/internal/engine"
-	"github.com/inovacc/claudebox/internal/version"
 )
+
+// defaultClaudeVersion is the version target installed in the container when the
+// caller does not pin one with --claude-version. It matches the Dockerfile's
+// CLAUDE_VERSION default and the install script's accepted targets
+// (stable | latest | X.Y.Z).
+const defaultClaudeVersion = "stable"
 
 // defaultSeedBase returns a directory for the ephemeral credential seed that is
 // inside Docker Desktop's default file-sharing scope. The user home is shared
@@ -63,16 +68,13 @@ func (s *Sandbox) Run(ctx context.Context) (int, error) {
 		return -1, err
 	}
 
-	// 1. Resolve the Claude version to pin.
+	// 1. Resolve the Claude version to pin. Defaults to "stable"; override with
+	//    --claude-version (one of stable|latest|X.Y.Z).
 	claudeVersion := s.cfg.ClaudeVersion
 	if claudeVersion == "" {
-		detected, err := version.Detect(ctx, "")
-		if err != nil {
-			return -1, fmt.Errorf("detect host claude version (pass --claude-version to override): %w", err)
-		}
-		claudeVersion = detected
+		claudeVersion = defaultClaudeVersion
 	}
-	s.log.Info("resolved claude version", "version", claudeVersion)
+	s.log.Info("using claude version", "version", claudeVersion)
 
 	tag := s.cfg.ResolvedImageTag(claudeVersion)
 

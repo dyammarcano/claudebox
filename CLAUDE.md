@@ -1,10 +1,10 @@
 # claudebox
 
 Run Claude Code agents in **isolated, throwaway Docker containers**. A Go CLI
-detects the host's Claude version, builds a version-pinned image (embedded
-two-stage Dockerfile), injects a scrubbed read-only credential seed, runs
-`claude -p` headless against a mounted workspace, then force-removes the
-container. Host `~/.claude` is never written to.
+builds a version-pinned image (embedded two-stage Dockerfile; version is `stable`
+by default or `--claude-version X.Y.Z`), injects a scrubbed read-only credential
+seed, runs `claude -p` headless against a mounted workspace, then force-removes
+the container. Host `~/.claude` is never written to.
 
 ## Build / test / lint
 
@@ -21,7 +21,6 @@ go run ./cmd/claudebox run -w . -p "..."         # run the CLI (never build-then
 ```
 cmd/claudebox/         CLI (Cobra, package main): cmd_run.go, version, aicontext
 internal/config/       Config + Normalize/Validate
-internal/version/      detect host `claude --version`
 internal/credentials/  scrubbed ephemeral seed (copy, never mount ~/.claude)
 internal/engine/       Docker SDK: build / run / stdcopy stream / force-remove
 internal/sandbox/      lifecycle orchestration
@@ -37,7 +36,7 @@ See `docs/ARCHITECTURE.md` (diagrams), `docs/DESIGN.md`, `docs/adr/`.
   `docker/docker/client@latest` (that's the split `moby/moby/client`).
 - Use `errors.Is`/`errors.As` and `%w` wrapping; never `==` on errors.
 - Never mount the host `~/.claude` directly — copy a scrubbed seed (see ADR-0002).
-- Image Claude version MUST equal the host version (reproducibility).
+- In-container Claude version is pinned (`stable` default; `--claude-version` to override).
 - Container runs as non-root `agent`; container is force-removed unless `--keep`.
 - License: BSD 3-Clause. No AI attribution in commits.
 

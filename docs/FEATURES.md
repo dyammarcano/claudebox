@@ -3,7 +3,7 @@
 ## Completed
 
 - **Isolated headless runs** — execute `claude -p` inside a throwaway container.
-- **Version parity** — container Claude pinned to the host `claude --version`.
+- **Pinned version** — container Claude pinned (`stable` default, or `--claude-version X.Y.Z`).
 - **Ephemeral credential seed** — scrubbed read-only copy; host `~/.claude` never modified.
 - **Auth flexibility** — subscription OAuth by default; `--api-key`/`ANTHROPIC_API_KEY` override.
 - **Guardrails** — `--allowed-tools`, `--max-turns`, `--permission-mode`.
